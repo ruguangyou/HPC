@@ -19,7 +19,7 @@ double *im_inits;
 
 char *categories;    // categorize each data point into the root it converges to
 int *num_iters;     // store the number of iterations each computation needs to converge
-int max_iters = 100;
+int max_iter = 100;
 
 char **color_sets;
 int len_color;
@@ -267,13 +267,13 @@ void *newton (void *restrict arg) {
             pthread_mutex_lock(&mutex_item);
             categories[ix] = d + 1;
             pthread_mutex_unlock(&mutex_item);
-            num_iters[ix] = max_iters - 1;
+            num_iters[ix] = max_iter - 1;
             continue;
         }
 
         re_prev = re_init; im_prev = im_init;
         done = 0;
-        for (int iter = 0; iter < max_iters; ++iter) {
+        for (int iter = 0; iter < max_iter; ++iter) {
             // compute x^(d-1);
             re_temp = 1; im_temp = 0;
             for (int i = 0; i < d-1; ++i) {
@@ -295,25 +295,15 @@ void *newton (void *restrict arg) {
             im_temp = (im_next < 0) ? (-im_next) : im_next;
 
             // if the absolute value of real or imaginary part is bigger than 10^10, abort iteration, categorize to the the additional root
-            if (re_temp > 10000000000 || im_temp > 10000000000) {
-                pthread_mutex_lock(&mutex_item);
-                categories[ix] = d + 1;
-                pthread_mutex_unlock(&mutex_item);
-                num_iters[ix] = max_iters - 1;
+            if (re_temp > 10000000000 || im_temp > 10000000000)
                 break;
-            }
 
             // if x is closer than 10^-3 to the origin, abort iteration, categorize to the additional root
             re_temp = re_next - re_init;  // delta_re
             im_temp = im_next - im_init;  // delta_im
             // sqrt(d_re^2 + d_im^2) < 10^-3, is just d_re^2 + d_im^2 < 10^-6
-            if (re_temp * re_temp + im_temp * im_temp < 0.000001) {
-                pthread_mutex_lock(&mutex_item);
-                categories[ix] = d + 1;
-                pthread_mutex_unlock(&mutex_item);
-                num_iters[ix] = max_iters - 1;
+            if (re_temp * re_temp + im_temp * im_temp < 0.000001)
                 break;
-            }
         
             // if x is closer than 10^-3 to one of the roots, abort iteration, categorize to the corresponding root
             // the label should be 1, 2, ..., d, and d+1 (additional root). 0 means the item has not done
@@ -334,6 +324,13 @@ void *newton (void *restrict arg) {
 
             re_prev = re_next;
             im_prev = im_next;
+        }
+        // if still not done, might be caused by conditions vialation, or reaching the max_iter
+        if (!done) {
+            pthread_mutex_lock(&mutex_item);
+            categories[ix] = d + 1;
+            pthread_mutex_unlock(&mutex_item);
+            num_iters[ix] = max_iter - 1;
         }
     }
 }
@@ -357,13 +354,13 @@ void *write_to_disc (void *arg) {
     FILE *convergence = fopen(buffer, "w");
     
     fprintf(attractors, "P3\n%d %d\n%d\n", num_lines, num_lines, d);
-    fprintf(convergence, "P3\n%d %d\n%d\n", num_lines, num_lines, max_iters);
+    fprintf(convergence, "P3\n%d %d\n%d\n", num_lines, num_lines, max_iter);
 
     char *color_buf;
     
-    // get the number of digits of the max_iters
+    // get the number of digits of the max_iter
     int len = 0;
-    int temp = max_iters;
+    int temp = max_iter;
     while (temp) {
         temp /= 10;
         len++;
@@ -413,6 +410,6 @@ void *write_to_disc (void *arg) {
     free(local);
     free(iters_buf);
     fclose(attractors);
-    fclose(convergence);
+    fclose(convergence); 
 }
 

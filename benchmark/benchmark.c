@@ -4,7 +4,7 @@
 #include <string.h>
 #include <pthread.h>
 #include <math.h>
-#include <time.h>
+#include "time_diff.h"
 
 int num_threads = 1;
 int num_lines = 2;
@@ -214,31 +214,41 @@ int main (int argc, char **argv) {
         roots[2*n+1] = sin(2 * M_PI * n / d);  // imaginary part
     }
     
-    // create threads
-    for (tx = 0; tx < num_threads; ++tx) {
-        int *arg = (int *) malloc(sizeof(int));
-        *arg = tx;
-        if (ret = pthread_create(&newton_threads[tx], NULL, newton, (void *)arg)) {
-            // functions in pthread will return 0 if success
-            printf("Error creating newton thread: %d\n", ret);
+    // benchmark running time
+    struct timespec start, stop, result;
+    double diff = 0;
+    for (int ii = 0; ii < 10; ++ii) {
+        timespec_get(&start, TIME_UTC);
+        // create threads
+        for (tx = 0; tx < num_threads; ++tx) {
+            int *arg = (int *) malloc(sizeof(int));
+            *arg = tx;
+            if (ret = pthread_create(&newton_threads[tx], NULL, newton, (void *)arg)) {
+                // functions in pthread will return 0 if success
+                printf("Error creating newton thread: %d\n", ret);
+                exit(1);
+            }
+        }
+        if (ret = pthread_create(&writing_thread, NULL, write_to_disc, NULL)) {
+            printf("Error creating writing thread: %d\n", ret);
             exit(1);
         }
-    }
-    if (ret = pthread_create(&writing_thread, NULL, write_to_disc, NULL)) {
-        printf("Error creating writing thread: %d\n", ret);
-        exit(1);
-    }
 
-    for (tx = 0; tx < num_threads; ++tx) {
-        if (ret = pthread_join(newton_threads[tx], NULL)) {
-            printf("Error joining newton thread: %d\n", ret);
+        for (tx = 0; tx < num_threads; ++tx) {
+            if (ret = pthread_join(newton_threads[tx], NULL)) {
+                printf("Error joining newton thread: %d\n", ret);
+                exit(1);
+            }
+        }
+        if (ret = pthread_join(writing_thread, NULL)) {
+            printf("Error joining writing thread: %d\n", ret);
             exit(1);
         }
+        timespec_get(&stop, TIME_UTC);
+        time_diff(&start, &stop, &result);
+        diff += result.tv_sec + (double) result.tv_nsec/1000000000;
     }
-    if (ret = pthread_join(writing_thread, NULL)) {
-        printf("Error joining writing thread: %d\n", ret);
-        exit(1);
-    }
+    printf("Average running time (10 iters: -l%d -t%d %d) : %lf s\n", num_lines, num_threads, d, diff/10);
 
     free(roots);
     free(re_inits); free(im_inits);
@@ -363,7 +373,7 @@ void *write_to_disc (void *arg) {
        ---------------- */
     struct timespec sleep_timespec;
     sleep_timespec.tv_sec = 0;
-    sleep_timespec.tv_nsec = 10000000;
+    sleep_timespec.tv_nsec = 10000000;  // 10ms
     
     char buffer[50];
     sprintf(buffer, "newton_attractors_x%d.ppm", d);

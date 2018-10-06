@@ -1,5 +1,5 @@
 CC=gcc
-LIB=-lm -lpthread
+LIB=-lm -pthread
 FLAG=-march=native -O2 
 
 newton : newton.o

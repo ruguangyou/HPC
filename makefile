@@ -2,14 +2,16 @@ CC=gcc
 LIB=-lm -pthread
 FLAG=-march=native -O2 
 
-newton : newton.o
+newton : newton.o complex.o
 	$(CC) -o $@ $^ $(LIB) $(FLAG)
 
-newton.0 : newton.c
+newton.o : newton.c
 	$(CC) -o $@ -c $< $(LIB) $(FLAG)
 
+complex.o : complex.c
+	$(CC) -o $@ -c $< $(FLAG)
 
 .PHONY : clean
 
 clean :
-	rm newton newton.o
+	rm -f newton *.o

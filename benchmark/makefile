@@ -2,7 +2,7 @@ CC=gcc
 LIB=-lm -pthread
 FLAG=-march=native -O2 
 
-benchmark : benchmark.o time_diff.o
+benchmark : benchmark.o time_diff.o complex.o
 	$(CC) -o $@ $^ $(LIB) $(FLAG)
 
 benchmark.o : benchmark.c
@@ -11,7 +11,10 @@ benchmark.o : benchmark.c
 time_diff.o : time_diff.c
 	$(CC) -o $@ -c $^ $(FLAG)
 
+complex.o : complex.c
+	$(CC) -o $@ -c $^ $(FLAG)
+
 .PHONY : clean
 
 clean :
-	rm benchmark *.o
+	rm benchmark *.o *.ppm

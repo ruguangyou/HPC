@@ -5,11 +5,12 @@
 #include <pthread.h>
 #include <math.h>
 #include <time.h>
+#include "complex.h"
 
 int num_threads = 1;
 int num_lines = 2;
 int num_items = 4;   // num_lines^2
-int d;
+int d;               // simplification: assume degree is less than 10
 
 double *roots;       // store the precomputed roots
 
@@ -17,16 +18,20 @@ double *re_inits;    // store the initial values of all the data points that are
 double *im_inits;
 
 char *categories;    // categorize each data point into the root it converges to
-int *num_iters;     // store the number of iterations each computation needs to converge
-int max_iter = 20;
+char *num_iters;      // store the number of iterations each computation needs to converge
+int max_iter = 50;   // assume less than 100, but no less than 50
 
 char **color_sets;
 int len_color;
+
+char **gray_sets;
+int len_gray;
 
 pthread_mutex_t mutex_item;
 
 void *newton(void *arg);
 void *write_to_disc(void *arg);
+void (*complex_power)(double *cpx);
 
 int main (int argc, char **argv) {
     /* 
@@ -78,16 +83,17 @@ int main (int argc, char **argv) {
     }
 
 */
+    // parse arguments
     char *endptr;
     if (argc < 2) {
-        printf("no degree given\n");
-        return 1;
+        fprintf(stderr, "no degree given\n");
+        exit(1);
     }
     else if (argc == 2) {
         d = strtol(argv[1], &endptr, 10); // if failed, will return 0
         if (d == 0) {
-            printf("no degree given\n");
-            return 1;
+            fprintf(stderr, "no degree given\n");
+            exit(1);
         }
     }
     else if (argc == 3) {
@@ -99,12 +105,12 @@ int main (int argc, char **argv) {
         }
         d = strtol(argv[i_d], &endptr, 10);
         if (i_d == 0 || d == 0) {
-            printf("no degree given\n");
-            return 1;
+            fprintf(stderr, "no degree given\n");
+            exit(1);
         }
         if (i_tl == 0) {
-            printf("more than one degrees are given\n");
-            return 1;
+            fprintf(stderr, "more than one degrees are given\n");
+            exit(1);
         }
         switch (argv[i_tl][1]) {
             case 't' :
@@ -127,46 +133,46 @@ int main (int argc, char **argv) {
         }
         d = strtol(argv[i_d], &endptr, 10);
         if (i_d == 0 || d == 0) {
-            printf("no degree given\n");
-            return 1;
+            fprintf(stderr, "no degree given\n");
+            exit(1);
         }
         if (d > 13) {  // the degree should not be too large
-            printf("unexpected degree\n");
-            return 1;
+            fprintf(stderr, "unexpected degree\n");
+            exit(1);
         }
         if (i_t == 0 || i_l == 0) {
-            printf("missing some parameter\n");
-            return 1;
+            fprintf(stderr, "missing some parameter\n");
+            exit(1);
         }
         num_threads = strtol(argv[i_t]+2, &endptr, 10);
         num_lines = strtol(argv[i_l]+2, &endptr, 10);
     }
     else {
-        printf("too much parameters\n");
-        return 1;
+        fprintf(stderr, "too much parameters\n");
+        exit(1);
     }
 
     if (num_threads < 1) {
-        printf("number of threads must be positive\n");
-        return 1;
+        fprintf(stderr, "number of threads must be positive\n");
+        exit(1);
     }
     if (num_lines < 2) {
-        printf("number of lines must be greater than 1\n");
-        return 1;
+        fprintf(stderr, "number of lines must be greater than 1\n");
+        exit(1);
     }
     num_items = num_lines * num_lines;
 
-
+    // memory allocations, initializations
+    
     roots = (double *) malloc(2 * d * sizeof(double));
     re_inits = (double *) malloc(num_lines * sizeof(double));
     im_inits = (double *) malloc(num_lines * sizeof(double));
-    num_iters = (int *) malloc(num_items * sizeof(int));
+    num_iters = (char *) malloc(num_items * sizeof(int));
     // initialize categories to zero. so if the entry is zero, means it hasn't been categorized yet
     categories = (char *) calloc(num_items, sizeof(char));
 
     // preset colors
-    int len_d = (d < 10) ? 1 : 2;  // we have set that the degree should not be larger than 13
-    len_color = (len_d + 1) * 3;  
+    len_color = 6;  // assume degree less than 10, then the format of color should be "%d %d %d ", e.g. "3 4 5 "
     // we need d+1 kinds of color, each color has RGB value and corresponding spaces
     char *colors = (char *) malloc((d+1) * len_color * sizeof(char));
     // matrix form
@@ -174,23 +180,21 @@ int main (int argc, char **argv) {
     for (int i = 0; i < d+1; ++i)
         color_sets[i] = colors + i * len_color;
     // initialize colors
-    if (len_d == 1) {
-        for (int i = 0; i < d+1; ++i)
-            for (int j = 0; j < len_color; j += 2) {
-                color_sets[i][j] = (i+j) % (d+1) + '0';
-                color_sets[i][j+1] = ' ';
-            }
-    }
-    else {
-        for (int i = 0; i < d+1; ++i)
-            for (int j = 0; j < len_color; j += 3) {
-                color_sets[i][j] = (i + j) / d + '0';
-                char c = (i+j) % (d+1);
-                c = (c < 10) ? c : (c-10);
-                color_sets[i][j+1] = c + '0';
-                color_sets[i][j+2] = ' ';
-            }
-    }
+    for (int i = 0; i < d+1; ++i)
+        for (int j = 0; j < len_color; j += 2) {
+            color_sets[i][j] = (i+j) % (d+1) + '0';
+            color_sets[i][j+1] = ' ';
+        }
+
+    // preset grays
+    len_gray = 9;  // assume the max_iter less than 100 but no less than 50, the format "%d %d %d ", e.g. "58 58 58 "
+    char *grays = (char *) malloc(max_iter * len_gray * sizeof(char));
+    gray_sets = (char **) malloc(max_iter * sizeof(char *));
+    for (int i = 0; i < max_iter; ++i)
+        gray_sets[i] = grays + i * len_gray;
+    // initialize grays
+    for (int i = 0; i < max_iter; ++i)
+        sprintf(gray_sets[i], "%02d %02d %02d ", i, i, i);
 
     pthread_t newton_threads[num_threads];
     pthread_t writing_thread;
@@ -204,6 +208,40 @@ int main (int argc, char **argv) {
         temp = -2 + interval * ix;
         re_inits[ix] = temp;
         im_inits[num_lines - 1 - ix] = temp;
+    }
+
+    // the pre-hardcoded complex power function
+    switch(d-1) {
+        case 1:
+            complex_power = complex_power_d1;
+            break;
+        case 2:
+            complex_power = complex_power_d2;
+            break;
+        case 3:
+            complex_power = complex_power_d3;
+            break;
+        case 4:
+            complex_power = complex_power_d4;
+            break;
+        case 5:
+            complex_power = complex_power_d5;
+            break;
+        case 6:
+            complex_power = complex_power_d6;
+            break;
+        case 7:
+            complex_power = complex_power_d7;
+            break;
+        case 8:
+            complex_power = complex_power_d8;
+            break;
+        case 9:
+            complex_power = complex_power_d9;
+            break;
+        default:
+            fprintf(stderr, "unexpected degree\n");
+            exit(1);
     }
 
     // Precompute the exact values of the roots which can be used for comparison during the iteration later.
@@ -245,17 +283,22 @@ int main (int argc, char **argv) {
     free(categories);
     free(num_iters);
     free(colors); free(color_sets);
+    free(grays); free(gray_sets);
 
     return 0;
 }
 
 void *newton (void *restrict arg) {
+    // by making simplification that degree is less than 10,
+    // it is allowed to hardcore formula for each degree case,
+    // which is largely about finding an expression for the iteration step that is as efficient as possible.
     int offset = *((int *)arg);
     free(arg);
     
     double re_init, im_init;
     double re_next, im_next, re_prev, im_prev;
-    double re_temp, im_temp, temp, re_temp1, im_temp1;
+    double re_temp, im_temp, temp;
+    double *cpx = (double *) malloc(2 * sizeof(double));
     int done;
     for (int ix = offset; ix < num_items; ix += num_threads) {
         // f(x) = x^d - 1, f'(x) = d * x^(d-1)
@@ -275,32 +318,11 @@ void *newton (void *restrict arg) {
         done = 0;
         for (int iter = 0; iter < max_iter; ++iter) {
             // compute x^(d-1);
-            if (d > 2) {  // d-1 is even
-                re_next = re_prev * re_prev - im_prev * im_prev;
-                im_next = 2* re_prev * im_prev;
-                re_temp1 = re_next;
-                im_temp1 = im_next;
-                for (int i = 0; i < (d-1)/2-1; ++i) {
-                    re_temp = re_next;
-                    im_temp = im_next;
-                    re_next = re_temp * re_temp1 - im_temp * im_temp1;
-                    im_next = re_temp * im_temp1 + im_temp * re_temp1;
-                }
-                if (d%2 == 0) {
-                    re_temp = re_next;
-                    im_temp = im_next;
-                    re_next = re_temp * re_prev - im_temp * im_prev;
-                    im_next = re_temp * im_prev + im_temp * re_prev;
-                }
-            }
-            else if (d == 2) {
-                re_next = re_prev;
-                im_next = im_prev;
-            }
-            else {
-                re_next = 1;
-                im_next = 0;
-            }
+            cpx[0] = re_prev;
+            cpx[1] = im_prev;
+            complex_power(cpx);
+            re_next = cpx[0];
+            im_next = cpx[1];
 
             // x_next = x - f(x)/f'(x) = (1-1/d) * x + 1/d * 1/x^(d-1)
             // 1/(a+bi) = (a-bi)/(a^2+b^2) = a*c-(b*/c)i, c = 1/(a^2+b^2)
@@ -363,7 +385,7 @@ void *write_to_disc (void *arg) {
        ---------------- */
     struct timespec sleep_timespec;
     sleep_timespec.tv_sec = 0;
-    sleep_timespec.tv_nsec = 10000000;
+    sleep_timespec.tv_nsec = 100000000;  // sleep 100ms
     
     char buffer[50];
     sprintf(buffer, "newton_attractors_x%d.ppm", d);
@@ -375,16 +397,7 @@ void *write_to_disc (void *arg) {
     fprintf(convergence, "P3\n%d %d\n%d\n", num_lines, num_lines, max_iter);
 
     char *color_buf;
-    
-    // get the number of digits of the max_iter
-    int len = 0;
-    int temp = max_iter;
-    while (temp) {
-        temp /= 10;
-        len++;
-    }
-    char *iters_buf = (char *) malloc((len+1) * sizeof(char));
-    int iters;
+    char *gray_buf;
     
     char *local = (char *) calloc(num_items, sizeof(char));
     for (int ix = 0; ix < num_items; ) {
@@ -401,32 +414,24 @@ void *write_to_disc (void *arg) {
 
         for ( ; ix < num_items && local[ix] != 0; ++ix) {
             color_buf = color_sets[ local[ix]-1 ];
+            gray_buf = gray_sets[ num_iters[ix] ];
+
             if (ix > 0 && ix % (num_lines-1) == 0) {
                 color_buf[len_color-1] = '\n';
-                iters_buf[len] = '\n';
+                gray_buf[len_gray-1] = '\n';
             }
             else {
                 color_buf[len_color-1] = ' ';
-                iters_buf[len] = ' ';
+                gray_buf[len_gray-1] = ' ';
             }
             
             // write to attractors file
             fwrite(color_buf, 1, len_color, attractors);
-
             // write to convergence file
-            iters = num_iters[ix];
-            for (int i = len-1; i>= 0; --i) {
-                iters_buf[i] = iters % 10 + '0';
-                iters /= 10;
-            }
-            // RGB, write three times
-            fwrite(iters_buf, 1, len+1, convergence);
-            fwrite(iters_buf, 1, len+1, convergence);
-            fwrite(iters_buf, 1, len+1, convergence);
+            fwrite(gray_buf, 1, len_gray, convergence);
         }
     }
     free(local);
-    free(iters_buf);
     fclose(attractors);
     fclose(convergence); 
 }

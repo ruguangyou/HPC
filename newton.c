@@ -7,25 +7,25 @@
 #include <time.h>
 #include "complex.h"
 
-int num_threads = 1;
-int num_lines = 2;
-int num_items = 4;   // num_lines^2
-int d;               // simplification: assume degree is less than 10
+size_t num_threads = 1;
+size_t num_lines = 2;
+size_t num_items = 4; // num_lines^2
+int d;                // simplification: assume degree is less than 10
 
-double *roots;       // store the precomputed roots
+double *roots;        // store the precomputed roots
 
-double *re_inits;    // store the initial values of all the data points that are to be computed
+double *re_inits;     // store the initial values of all the data points that are to be computed
 double *im_inits;
 
-char *categories;    // categorize each data point into the root it converges to
+char *categories;     // categorize each data point into the root it converges to
 char *num_iters;      // store the number of iterations each computation needs to converge
-int max_iter = 50;   // assume less than 100, but no less than 50
+size_t max_iter = 50; // assume less than 100, but no less than 50
 
 char **color_sets;
-int len_color;
+size_t len_color;
 
 char **gray_sets;
-int len_gray;
+size_t len_gray;
 
 pthread_mutex_t mutex_item;
 
@@ -167,7 +167,7 @@ int main (int argc, char **argv) {
     roots = (double *) malloc(3 * d * sizeof(double));
     re_inits = (double *) malloc(num_lines * sizeof(double));
     im_inits = (double *) malloc(num_lines * sizeof(double));
-    num_iters = (char *) malloc(num_items * sizeof(int));
+    num_iters = (char *) malloc(num_items * sizeof(char));
     // initialize categories to zero. so if the entry is zero, means it hasn't been categorized yet
     categories = (char *) calloc(num_items, sizeof(char));
 
@@ -177,10 +177,10 @@ int main (int argc, char **argv) {
     char *colors = (char *) malloc((d+1) * len_color * sizeof(char));
     // matrix form
     color_sets = (char **) malloc((d+1) * sizeof(char *));
-    for (int i = 0; i < d+1; ++i)
+    for (size_t i = 0; i < d+1; ++i)
         color_sets[i] = colors + i * len_color;
     // initialize colors
-    for (int i = 0; i < d+1; ++i)
+    for (size_t i = 0; i < d+1; ++i)
         for (int j = 0; j < len_color; j += 2) {
             color_sets[i][j] = (i+j) % (d+1) + '0';
             color_sets[i][j+1] = ' ';
@@ -188,13 +188,14 @@ int main (int argc, char **argv) {
 
     // preset grays
     len_gray = 9;  // assume the max_iter less than 100 but no less than 50, the format "%d %d %d ", e.g. "58 58 58 "
-    char *grays = (char *) malloc(max_iter * len_gray * sizeof(char));
+    // according to valgrind memcheck, when using sprintf the string should add one more byte for '\0' as the end
+    char *grays = (char *) malloc(max_iter * (len_gray+1) * sizeof(char));
     gray_sets = (char **) malloc(max_iter * sizeof(char *));
-    for (int i = 0; i < max_iter; ++i)
+    for (size_t i = 0; i < max_iter; ++i)
         gray_sets[i] = grays + i * len_gray;
     // initialize grays
-    for (int i = 0; i < max_iter; ++i)
-        sprintf(gray_sets[i], "%02d %02d %02d ", i, i, i);
+    for (size_t i = 0; i < max_iter; ++i)
+        sprintf(gray_sets[i], "%02zu %02zu %02zu ", i, i, i);
 
     pthread_t newton_threads[num_threads];
     pthread_t writing_thread;
@@ -204,7 +205,7 @@ int main (int argc, char **argv) {
     // the initial values are stored in shared memory that all threads can access to
     double interval = 4.0 / (num_lines - 1);
     double temp;
-    for (int ix = 0; ix < num_lines; ++ix) {
+    for (size_t ix = 0; ix < num_lines; ++ix) {
         temp = -2 + interval * ix;
         re_inits[ix] = temp;
         im_inits[num_lines - 1 - ix] = temp;
@@ -212,32 +213,35 @@ int main (int argc, char **argv) {
 
     // the pre-hardcoded complex power function
     switch(d-1) {
+        case 0:
+            complex_power = complex_power_0;
+            break;
         case 1:
-            complex_power = complex_power_d1;
+            complex_power = complex_power_1;
             break;
         case 2:
-            complex_power = complex_power_d2;
+            complex_power = complex_power_2;
             break;
         case 3:
-            complex_power = complex_power_d3;
+            complex_power = complex_power_3;
             break;
         case 4:
-            complex_power = complex_power_d4;
+            complex_power = complex_power_4;
             break;
         case 5:
-            complex_power = complex_power_d5;
+            complex_power = complex_power_5;
             break;
         case 6:
-            complex_power = complex_power_d6;
+            complex_power = complex_power_6;
             break;
         case 7:
-            complex_power = complex_power_d7;
+            complex_power = complex_power_7;
             break;
         case 8:
-            complex_power = complex_power_d8;
+            complex_power = complex_power_8;
             break;
         case 9:
-            complex_power = complex_power_d9;
+            complex_power = complex_power_9;
             break;
         default:
             fprintf(stderr, "unexpected degree\n");
@@ -303,7 +307,7 @@ void *newton (void *restrict arg) {
     double re_temp, im_temp, temp;
     double *cpx = (double *) malloc(2 * sizeof(double));
     int done;
-    for (int ix = offset; ix < num_items; ix += num_threads) {
+    for (size_t ix = offset; ix < num_items; ix += num_threads) {
         // f(x) = x^d - 1, f'(x) = d * x^(d-1)
         re_init = re_inits[ix%num_lines];
         im_init = im_inits[ix/num_lines];
@@ -319,7 +323,7 @@ void *newton (void *restrict arg) {
         re_prev = re_init;
         im_prev = im_init;
         done = 0;
-        for (int iter = 0; iter < max_iter; ++iter) {
+        for (size_t iter = 0; iter < max_iter; ++iter) {
             // compute x^(d-1);
             cpx[0] = re_prev;
             cpx[1] = im_prev;
@@ -351,7 +355,7 @@ void *newton (void *restrict arg) {
             // if x is closer than 10^-3 to one of the roots, abort iteration, categorize to the corresponding root
             // the label should be 1, 2, ..., d, and d+1 (additional root). 0 means the item has not done
             for (int n = 0; n < d; ++n) {
-                temp = re_next * (re_next - 2*roots[3*n]) + im_next * (im_next - 2* roots[3*n+1]) + roots[3*n+3];
+                temp = re_next * (re_next - 2*roots[3*n]) + im_next * (im_next - 2* roots[3*n+1]) + roots[3*n+2];
                 if (temp < 0.000001) {
                     pthread_mutex_lock(&mutex_item);
                     categories[ix] = n + 1;
@@ -375,6 +379,7 @@ void *newton (void *restrict arg) {
             num_iters[ix] = max_iter - 1;
         }
     }
+    free(cpx);
 }
 
 void *write_to_disc (void *arg) {
@@ -389,20 +394,21 @@ void *write_to_disc (void *arg) {
     sleep_timespec.tv_sec = 0;
     sleep_timespec.tv_nsec = 10000000;  // sleep 10ms
     
-    char buffer[50];
+    char buffer[30];
     sprintf(buffer, "newton_attractors_x%d.ppm", d);
     FILE *attractors = fopen(buffer, "w");
     sprintf(buffer, "newton_convergence_x%d.ppm", d);
     FILE *convergence = fopen(buffer, "w");
     
-    fprintf(attractors, "P3\n%d %d\n%d\n", num_lines, num_lines, d);
-    fprintf(convergence, "P3\n%d %d\n%d\n", num_lines, num_lines, max_iter);
+    fprintf(attractors, "P3\n%zu %zu\n%d\n", num_lines, num_lines, d);
+    fprintf(convergence, "P3\n%zu %zu\n%zu\n", num_lines, num_lines, max_iter);
 
-    char *color_buf;
-    char *gray_buf;
+    // according to valgrind memcheck, initialize the pointers
+    char *color_buf = NULL;
+    char *gray_buf = NULL;
     
     char *local = (char *) calloc(num_items, sizeof(char));
-    for (int ix = 0; ix < num_items; ) {
+    for (size_t ix = 0; ix < num_items; ) {
         pthread_mutex_lock(&mutex_item);
         if (categories[ix] != 0)
             memcpy(local, categories, num_items * sizeof(char));

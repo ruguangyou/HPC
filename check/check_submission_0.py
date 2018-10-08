@@ -7,6 +7,7 @@ def timeit(time_bd, repeat, cmd, path):
   for _ in range(repeat):
     t = perf_counter()
     subprocess.Popen(cmd, shell = True, cwd=path, stdout = subprocess.DEVNULL).wait(2*time_bd)
+    print(cmd, ":", "{:.2f}".format(perf_counter()-t), "( time_bd =", time_bd, ")")
     if perf_counter() - t < time_bd:
       return True
   return False

@@ -1,6 +1,6 @@
 CC=gcc
 LIB=-lm -pthread
-FLAG=-march=native -O2 
+FLAG=-march=native -g 
 
 newton : newton.o complex.o
 	$(CC) -o $@ $^ $(LIB) $(FLAG)

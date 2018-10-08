@@ -15,3 +15,10 @@ complex.o : complex.c
 
 clean :
 	rm -f newton *.o
+
+.PHONY : tar
+
+tar :
+	tar czf newton.tar.gz newton.c complex.c complex.h makefile
+	rm -f check/newton.tar.gz
+	mv newton.tar.gz check/

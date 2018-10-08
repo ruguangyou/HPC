@@ -164,7 +164,7 @@ int main (int argc, char **argv) {
 
     // memory allocations, initializations
     
-    roots = (double *) malloc(2 * d * sizeof(double));
+    roots = (double *) malloc(3 * d * sizeof(double));
     re_inits = (double *) malloc(num_lines * sizeof(double));
     im_inits = (double *) malloc(num_lines * sizeof(double));
     num_iters = (char *) malloc(num_items * sizeof(int));
@@ -248,8 +248,11 @@ int main (int argc, char **argv) {
     // f(x) = x^d - 1, there should be d roots in total
     // the n_th root (n = 0,1,...,d-1) is x_n = re + im*i, where re = cos(2*pi*n/d), im = sin(2*pi*n/d)
     for (int n = 0; n < d; ++n) {
-        roots[2*n  ] = cos(2 * M_PI * n / d);  // real part
-        roots[2*n+1] = sin(2 * M_PI * n / d);  // imaginary part
+        double re = cos(2 * M_PI * n / d);  // real part
+        double im = sin(2 * M_PI * n / d);  // imaginary part
+        roots[3*n  ] = re;
+        roots[3*n+1] = im;
+        roots[3*n+2] = re*re + im*im;       // re^2 + im^2
     }
     
     // create threads
@@ -348,9 +351,8 @@ void *newton (void *restrict arg) {
             // if x is closer than 10^-3 to one of the roots, abort iteration, categorize to the corresponding root
             // the label should be 1, 2, ..., d, and d+1 (additional root). 0 means the item has not done
             for (int n = 0; n < d; ++n) {
-                re_temp = re_next - roots[2*n  ];
-                im_temp = im_next - roots[2*n+1];
-                if (re_temp * re_temp + im_temp * im_temp < 0.000001) {
+                temp = re_next * (re_next - 2*roots[3*n]) + im_next * (im_next - 2* roots[3*n+1]) + roots[3*n+3];
+                if (temp < 0.000001) {
                     pthread_mutex_lock(&mutex_item);
                     categories[ix] = n + 1;
                     pthread_mutex_unlock(&mutex_item);
@@ -385,7 +387,7 @@ void *write_to_disc (void *arg) {
        ---------------- */
     struct timespec sleep_timespec;
     sleep_timespec.tv_sec = 0;
-    sleep_timespec.tv_nsec = 100000000;  // sleep 100ms
+    sleep_timespec.tv_nsec = 10000000;  // sleep 10ms
     
     char buffer[50];
     sprintf(buffer, "newton_attractors_x%d.ppm", d);

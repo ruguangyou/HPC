@@ -58,6 +58,17 @@ void complex_power_d6 (double *cpx) {
     b3 = b * (3*a_sqr - b_sqr);
     cpx[0] = a3*a3 - b3*b3;
     cpx[1] = 2*a3*b3;
+/*
+    double a, b, a2, b2, a4, b4;
+    a = cpx[0];
+    b = cpx[1];
+    a2 = a*a - b*b;
+    b2 = 2*a*b;
+    a4 = a2*a2 - b2*b2;
+    b4 = 2*a2*b2;
+    cpx[0] = a2*a4 - b2*b4;
+    cpx[1] = a2*b4 + b2*a4;
+*/
 }
 
 void complex_power_d7 (double *cpx) {

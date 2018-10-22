@@ -1,10 +1,9 @@
-#include <stdio.h>
-#include <stdlib.h>  // strtol()
-#include <unistd.h>  // getopt()
-#include <string.h>
+#include <stdio.h>   // fprintf(), sprintf(), fwrite()
+#include <stdlib.h>  // strtol(), exit(), malloc(), calloc(), free()
+#include <string.h>  // memcpy()
 #include <pthread.h>
-#include <math.h>
-#include <time.h>
+#include <math.h>    // cos(), sin()
+#include <time.h>    // nanosleep(), timespec
 #include "complex.h"
 
 size_t num_threads = 1;
@@ -25,9 +24,9 @@ char *row_dones;
 char **color_sets;
 char **gray_sets;
 
-size_t max_iter = 50; // assume less than 100, but no less than 50
-size_t len_color = 6; // assume degree less than 10, then the format of color should be "%d %d %d ", e.g. "3 4 5 "
-size_t len_gray = 9;  // assume the max_iter less than 100 but no less than 50, the format "%d %d %d ", e.g. "58 58 58 "
+size_t max_iter = 100;
+size_t len_color = 6;  // assume degree less than 10, then the format of color should be "%d %d %d ", e.g. "3 4 5 "
+size_t len_gray = 12;  // the format "%d %d %d ", e.g. "058 058 058 "
 
 pthread_mutex_t mutex_item;
 
@@ -170,7 +169,7 @@ int main (int argc, char **argv) {
         gray_sets[i] = grays + i*len_gray;
     // initialize grays
     for (size_t i = 0; i < max_iter; ++i)
-        sprintf(gray_sets[i], "%02zu %02zu %02zu ", i+1, i+1, i+1);
+        sprintf(gray_sets[i], "%03zu %03zu %03zu ", i+1, i+1, i+1);
 
     // the pre-hardcoded complex power function
     switch(d) {
@@ -212,23 +211,23 @@ int main (int argc, char **argv) {
         *arg = tx;
         if (ret = pthread_create(&newton_threads[tx], NULL, newton, (void *)arg)) {
             // functions in pthread will return 0 if success
-            printf("Error creating newton thread: %d\n", ret);
+            fprintf(stderr, "Error creating newton thread: %d\n", ret);
             exit(1);
         }
     }
     if (ret = pthread_create(&writing_thread, NULL, write_to_disc, NULL)) {
-        printf("Error creating writing thread: %d\n", ret);
+        fprintf(stderr, "Error creating writing thread: %d\n", ret);
         exit(1);
     }
 
     for (tx = 0; tx < num_threads; ++tx) {
         if (ret = pthread_join(newton_threads[tx], NULL)) {
-            printf("Error joining newton thread: %d\n", ret);
+            fprintf(stderr, "Error joining newton thread: %d\n", ret);
             exit(1);
         }
     }
     if (ret = pthread_join(writing_thread, NULL)) {
-        printf("Error joining writing thread: %d\n", ret);
+        fprintf(stderr, "Error joining writing thread: %d\n", ret);
         exit(1);
     }
 
@@ -361,7 +360,7 @@ void *write_to_disc (void *arg) {
         pthread_mutex_unlock(&mutex_item);
         
         if (local_dones[ix] == 0) {
-            // sleep write_to_disc thread to avoiding locking the mutex all the time
+            // sleep write_to_disc thread to avoid locking the mutex all the time
             nanosleep(&sleep_timespec, NULL);
             continue;
         }

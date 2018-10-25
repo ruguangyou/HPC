@@ -1,5 +1,16 @@
-# HPC
-High Performance Computing
+# HPC (High Performance Computing)
 
-gdb tips for debuging multi-threads:
-  set sechduler-clocking on
+## pthread
+
+## OpenMP
+
+## OpenCL
+
+
+gdb tips:
+ - text user interface: -tui
+ - input cmd line args: --args
+ - for debugging multi-threads:
+  - set sechduler-clocking on  // could step into one thread
+  - info threads
+  - thread thread_number  // switch among threads

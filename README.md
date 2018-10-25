@@ -50,7 +50,4 @@
 ## OpenMP
 
 ## OpenCL
-
-
-gdb tips:
  

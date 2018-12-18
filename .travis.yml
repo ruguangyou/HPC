@@ -20,7 +20,7 @@ addons:
 env:
   global:
   - BRANCH = ${TRAVIS_BRANCH}
-  - DOCKERHUB='chalmersfsd'
+  # - DOCKERHUB='chalmersfsd'
   # shell syntax #*/ means remove the first slash and string before it, for example, "cfsd/opendlv" would become "opendlv"
   - IMAGE=`echo ${TRAVIS_REPO_SLUG#*/}`
   # run the following in terminal to encrypt the username and passward
@@ -35,10 +35,10 @@ script: skip
 after_success:
 - if [[ -z "${TRAVIS_TAG}" ]]; then echo "This commit hasn't been tagged, will not be pushed to dockerhub"; exit 0; fi
 - docker --version
-- echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-- docker tag ${IMAGE}:${BRANCH} ${DOCKERHUB}/${IMAGE}:${TAG}
-- docker push ${DOCKERHUB}/${IMAGE}:${TAG}
-- echo "${DOCKERHUB}/${IMAGE}:${TAG}"
+# - echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+# - docker tag ${IMAGE}:${BRANCH} ${DOCKERHUB}/${IMAGE}:${TAG}
+# - docker push ${DOCKERHUB}/${IMAGE}:${TAG}
+# - echo "${DOCKERHUB}/${IMAGE}:${TAG}"
 
 notifications:
   email:

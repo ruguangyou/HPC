@@ -27,6 +27,9 @@ env:
   #   travis encrypt DOCKER_USER=sechalmersfsd --add
   #   travis encrypt DOCKER_PASS=cfsdlynx --add
 
+before_install:
+- if [[ -z "${TRAVIS_TAG}" ]]; then echo "no tag"; fi
+
 install:
 - docker build -f Dockerfile.amd64 -t ${IMAGE}:${BRANCH} .
 

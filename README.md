@@ -53,6 +53,7 @@
 http://www.math.chalmers.se/Math/Grundutb/CTH/tma881/1819/assignments.html
 
 ## pthread
+[include](File:"pthread/report.md")
 
 #### Program layout
 

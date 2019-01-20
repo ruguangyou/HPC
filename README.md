@@ -111,7 +111,7 @@ More threads tend to improve the performance. In our case, we got the runtime as
 |       1e5        |        10         |   2.6   |       4.1       |
 |       1e5        |        20         |   1.4   |       2.6       |
 
-As mentioned in previous section, the affect of how many cells to parse (or how many rows to read, defined as *ROW_MAX_READ*) at one time has been evaluated, with results presented in the table (1e5 points, 10 threads, runtime measured in seconds, compiler flag -O2) :
+The affect of how many cells to parse (or how many rows to read, defined as *ROW_MAX_READ*) at one time has been evaluated, with results presented in the table (1e5 points, 10 threads, runtime measured in seconds, compiler flag -O2) :
 
 | ROW_MAX_READ | Runtime |
 | :----------: | :-----: |
@@ -146,5 +146,5 @@ Experimentation reveals that number of boxes and number of iterations are the ma
 
 Benchmarks surpass the expectations, and there is little difference between different users.
 
-What we haven't done is calculating the average and average absolute difference with reduction. The program might be optimized even more or be a little overhead by using reduction. We didn't test this option, since the performance is already quite good so far.
+What hasn't been done is calculating the average and average absolute difference with reduction. The program might be optimized even more or be a little overhead by using reduction. We didn't test this option, since the performance is already quite good so far.
 

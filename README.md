@@ -46,6 +46,7 @@
      - thread thread_number  // switch among threads
    
 ## pthread
+[include](File:pthread/report.md)
 
 ## OpenMP
 

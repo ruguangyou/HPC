@@ -35,6 +35,7 @@ script:
 after_success:
 - echo "build number" ${TRAVIS_BUILD_NUMBER}
 - echo "job number" ${TRAVIS_JOB_NUMBER}
+- echo ${NUM}
 # - docker tag ${IMAGE}:${BRANCH} ${DOCKERHUB}/${IMAGE}:${TAG}
 # - docker push ${DOCKERHUB}/${IMAGE}:${TAG}
 # - echo "${DOCKERHUB}/${IMAGE}:${TAG}"

@@ -25,15 +25,16 @@ env:
   # shell syntax #*/ means remove the first slash and string before it, for example, "cfsd/opendlv" would become "opendlv"
   - IMAGE=`echo ${TRAVIS_REPO_SLUG#*/}`
 
-before_script:
+install:
 - docker --version
 
 script:
 #- docker build -f Dockerfile.amd64 -t ${IMAGE}:${BRANCH} .
 - echo "This is test branch"
 
-after_script:
-- echo ${NUM}
+after_success:
+- echo "build number" ${TRAVIS_BUILD_NUMBER}
+- echo "job number" ${TRAVIS_JOB_NUMBER}
 # - docker tag ${IMAGE}:${BRANCH} ${DOCKERHUB}/${IMAGE}:${TAG}
 # - docker push ${DOCKERHUB}/${IMAGE}:${TAG}
 # - echo "${DOCKERHUB}/${IMAGE}:${TAG}"

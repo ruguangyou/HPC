@@ -7,8 +7,8 @@ sudo: required
 
 branches:
   only:
-  - "/^master$/"
-  - "/^test$/"
+  - "/^test.*$/"
+  - "/^v.*$/"
 
 services:
 - docker
@@ -20,7 +20,6 @@ addons:
 env:
   global:
   - BRANCH = ${TRAVIS_BRANCH}
-  - NUM = ${TRAVIS_BUILD_NUMBER}
   # - DOCKERHUB='chalmersfsd'
   # shell syntax #*/ means remove the first slash and string before it, for example, "cfsd/opendlv" would become "opendlv"
   - IMAGE=`echo ${TRAVIS_REPO_SLUG#*/}`
@@ -35,21 +34,11 @@ script:
 after_success:
 - echo "build number" ${TRAVIS_BUILD_NUMBER}
 - echo "job number" ${TRAVIS_JOB_NUMBER}
-- echo ${NUM}
 # - docker tag ${IMAGE}:${BRANCH} ${DOCKERHUB}/${IMAGE}:${TAG}
 # - docker push ${DOCKERHUB}/${IMAGE}:${TAG}
 # - echo "${DOCKERHUB}/${IMAGE}:${TAG}"
-
-before_deploy:
-- if [[ "${BRANCH}" == "test" ]]; then echo "test, no deploy"; exit 0; fi
 # - echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-  
-deploy:
-  provider: script
-  script: echo "this master branch"
-  on:
-    tag: false
-    branch: master
+- if [[ -z "${TRAVIS_BRANCH}" ]]; then echo "not branch"; elif [[ -z "${TRAVIS_TAG}" ]]; then echo "not tag"; fi
 
 notifications:
   email:

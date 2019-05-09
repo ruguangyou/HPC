@@ -9,7 +9,7 @@ services:
 - docker
 addons:
   apt:
-    update: false
+    update: true
 env:
   global:
   - BRANCH = ${TRAVIS_BRANCH}
